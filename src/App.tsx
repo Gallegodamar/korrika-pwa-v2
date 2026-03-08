@@ -437,7 +437,7 @@ const App: React.FC = () => {
           )}
 
           {gameState === GameState.HOME && !needsUsernameSetup && (
-            <div className="flex-1 w-full h-full pb-20 overflow-y-auto">
+            <div className="flex-1 w-full pb-20 overflow-y-auto overscroll-y-none">
               {currentTab === 'home' && renderWithProfiler(
                 'HomeScreen',
                 <HomeScreen
