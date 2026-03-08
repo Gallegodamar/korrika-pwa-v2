@@ -391,26 +391,32 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-[100dvh] w-full flex flex-col bg-gray-50 text-gray-800 safe-pt safe-pb safe-pl safe-pr ${gameState !== GameState.AUTH ? 'overflow-x-hidden overflow-y-hidden' : 'overflow-auto'}`}>
-      <header className="w-full korrika-bg-gradient px-3 py-3 sm:px-4 sm:py-4 text-white shadow-md flex flex-col items-center flex-shrink-0 z-10">
-        {user && gameState !== GameState.AUTH && (
-          <div className="w-full max-w-5xl mx-auto flex items-center justify-between gap-2 mb-2 sm:mb-3">
+      <header className="sticky top-0 w-full korrika-bg-gradient px-3 py-2 sm:px-4 sm:py-3 text-white shadow-md flex-shrink-0 z-50">
+        <div className="w-full max-w-5xl mx-auto relative flex justify-center items-center min-h-[2.5rem] sm:min-h-[3rem]">
+          {user && gameState !== GameState.AUTH && (
             <button
               onClick={handleLogout}
-              className="rounded-full bg-white/20 px-3 py-2 sm:px-3.5 text-[10px] font-black uppercase tracking-wide hover:bg-white/30 transition-colors whitespace-nowrap"
+              className="absolute left-0 rounded-full bg-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-[11px] font-black uppercase tracking-wider hover:bg-white/30 transition-colors whitespace-nowrap active:scale-95"
             >
               Irten
             </button>
-            <div className="rounded-full bg-white/20 px-3 py-2 sm:px-3.5 text-[10px] font-black uppercase tracking-wide max-w-[60%] truncate text-center">
+          )}
+
+          <div className="flex flex-col items-center justify-center">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight uppercase italic flex items-center gap-1.5 leading-none">
+              <span aria-hidden className="text-base sm:text-lg">{'\u{1F3C3}'}</span> KORRIKA
+            </h1>
+            <p className="text-[8px] sm:text-[9px] font-bold opacity-90 uppercase tracking-[0.2em] text-center mt-1">
+              {DAYS_COUNT} EGUNEKO ERRONKA
+            </p>
+          </div>
+
+          {user && gameState !== GameState.AUTH && (
+            <div className="absolute right-0 rounded-full bg-white/20 px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-[11px] font-black uppercase tracking-wider max-w-[35%] truncate text-center">
               {userDisplayName}
             </div>
-          </div>
-        )}
-        <h1 className="text-[clamp(1.3rem,5vw,2.1rem)] font-black tracking-tight uppercase italic flex items-center gap-2">
-          <span aria-hidden>{'\u{1F3C3}'}</span> KORRIKA
-        </h1>
-        <p className="text-[10px] sm:text-[11px] font-bold opacity-80 uppercase tracking-[0.2em] text-center">
-          {DAYS_COUNT} EGUNEKO ERRONKA
-        </p>
+          )}
+        </div>
       </header>
 
       <main className="flex-1 w-full max-w-5xl mx-auto px-2 sm:px-4 lg:px-6 flex flex-col overflow-hidden relative">
