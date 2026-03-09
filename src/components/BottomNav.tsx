@@ -29,14 +29,14 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ currentTab, onChangeTa
                             className={`relative flex flex-col items-center justify-center w-16 h-12 transition-colors ${isActive ? 'text-pink-600' : 'text-slate-400 hover:text-slate-600'
                                 }`}
                         >
-                            <div className="relative z-10 flex flex-col items-center gap-1">
+                            <div className="relative z-10 flex flex-col items-center">
                                 <Icon
                                     size={isActive ? 24 : 22}
                                     strokeWidth={isActive ? 2.5 : 2}
                                     className="transition-all duration-300"
                                 />
                                 <span
-                                    className={`text-[9px] font-black uppercase tracking-wider transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-75 h-0 overflow-hidden'
+                                    className={`text-[9px] font-black uppercase tracking-wider transition-all duration-300 ${isActive ? 'opacity-100 scale-100 mt-1' : 'opacity-0 scale-75 h-0 overflow-hidden m-0'
                                         }`}
                                 >
                                     {tab.label}
@@ -45,9 +45,9 @@ const BottomNav: React.FC<BottomNavProps> = React.memo(({ currentTab, onChangeTa
 
                             {isActive && (
                                 <motion.div
-                                    layoutId="bottom-nav-indicator"
                                     className="absolute inset-0 bg-pink-100/50 rounded-2xl -z-0"
-                                    initial={false}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
                                     transition={{ type: 'spring', stiffness: 300, damping: 25 }}
                                 />
                             )}
