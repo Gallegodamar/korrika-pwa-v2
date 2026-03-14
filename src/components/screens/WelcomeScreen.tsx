@@ -7,8 +7,7 @@ type WelcomeScreenProps = {
 };
 
 const MESSAGE_LINES = [
-  'Kaixo! Ongi etorri!',
-  'Korrikaren inguruko jolas honetara.',
+  'Ongi etorri Korrikaren inguruko jolas xume honetara',
   'Eutsi hamaika egunez!',
   'Parte hartu, ikasi eta gozatu.'
 ];
@@ -68,17 +67,14 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = React.memo(({ onContinue }) 
                 <h2 className="max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight text-slate-900 sm:text-5xl">
                   {MESSAGE_LINES[0]}
                 </h2>
-                <p className="max-w-2xl text-lg font-semibold leading-relaxed text-slate-600 sm:text-xl">
-                  {MESSAGE_LINES[1]}
-                </p>
               </motion.div>
 
               <motion.div variants={itemVariants} className="space-y-3">
                 <div className="inline-flex items-center rounded-[1.75rem] bg-gradient-to-r from-pink-500 via-fuchsia-500 to-orange-400 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white shadow-[0_14px_35px_-18px_rgba(236,72,153,0.75)] sm:text-base">
-                  {MESSAGE_LINES[2]}
+                  {MESSAGE_LINES[1]}
                 </div>
                 <p className="max-w-xl text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
-                  {MESSAGE_LINES[3]}
+                  {MESSAGE_LINES[2]}
                 </p>
               </motion.div>
 
