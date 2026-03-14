@@ -2,6 +2,7 @@ import { supabase } from '../supabase';
 import { QuizData } from '../types';
 
 export type GameResultRow = {
+  user_id: string | null;
   player_name: string | null;
   correct_answers: number | null;
   played_at: string | null;
@@ -317,7 +318,7 @@ export const createRegisteredPlayer = async ({ username, email }: RegisterPlayer
 export const getLeaderboards = async (daysCount = 11) => {
   const { data, error } = await supabase
     .from('game_results')
-    .select('player_name, correct_answers, played_at, day_index')
+    .select('user_id, player_name, correct_answers, played_at, day_index')
     .order('played_at', { ascending: false })
     .limit(5000);
 
@@ -334,6 +335,7 @@ export const getLeaderboards = async (daysCount = 11) => {
     const normalizedDay = parsedDay === null ? null : oneBased ? parsedDay - 1 : parsedDay;
 
     return {
+      user_id: row.user_id ? String(row.user_id) : null,
       player_name: row.player_name ? String(row.player_name) : null,
       correct_answers:
         row.correct_answers === null || row.correct_answers === undefined

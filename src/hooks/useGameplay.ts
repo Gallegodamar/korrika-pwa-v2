@@ -3,7 +3,8 @@ import { supabase } from '../supabase';
 import { useAppStore } from '../store/useAppStore';
 import { GameState, PlayMode, Player, Question, UserAnswer, QuizData, DailyProgress } from '../types';
 import { shuffle, pickRandomItems, getUserProgressStorageKey } from '../utils/helpers';
-import { QUESTIONS_PER_DAY, DAYS_COUNT } from '../utils/constants';
+import { QUESTIONS_PER_DAY, DAYS_COUNT, QUESTIONS_PER_CATEGORY } from '../utils/constants';
+import { useShallow } from 'zustand/react/shallow';
 
 export const useGameplay = (
     userDisplayName: string,
@@ -17,7 +18,35 @@ export const useGameplay = (
         setPlayMode, setDayIndex, setActiveQuestions, setPlayers, setCurrentPlayerIdx,
         setCurrentQuestionIdx, setGameState, fetchLeaderboards, fetchUserDailyPlays,
         progress, setProgress, setSequentialSimulationProgress, setSequentialSimulationDay
-    } = useAppStore();
+    } = useAppStore(useShallow((state) => ({
+        user: state.user,
+        playMode: state.playMode,
+        dayIndex: state.dayIndex,
+        quizData: state.quizData,
+        activeQuestions: state.activeQuestions,
+        players: state.players,
+        currentPlayerIdx: state.currentPlayerIdx,
+        currentQuestionIdx: state.currentQuestionIdx,
+        sequentialSimulationActive: state.sequentialSimulationActive,
+        sequentialSimulationProgress: state.sequentialSimulationProgress,
+        isSimulationRun: state.isSimulationRun,
+        setDailyPlayLockMessage: state.setDailyPlayLockMessage,
+        setReviewDayIndex: state.setReviewDayIndex,
+        setIsSimulationRun: state.setIsSimulationRun,
+        setPlayMode: state.setPlayMode,
+        setDayIndex: state.setDayIndex,
+        setActiveQuestions: state.setActiveQuestions,
+        setPlayers: state.setPlayers,
+        setCurrentPlayerIdx: state.setCurrentPlayerIdx,
+        setCurrentQuestionIdx: state.setCurrentQuestionIdx,
+        setGameState: state.setGameState,
+        fetchLeaderboards: state.fetchLeaderboards,
+        fetchUserDailyPlays: state.fetchUserDailyPlays,
+        progress: state.progress,
+        setProgress: state.setProgress,
+        setSequentialSimulationProgress: state.setSequentialSimulationProgress,
+        setSequentialSimulationDay: state.setSequentialSimulationDay
+    })));
 
     const [validatingDailyStart, setValidatingDailyStart] = useState(false);
 
@@ -27,7 +56,7 @@ export const useGameplay = (
         if (mode === 'RANDOM') {
             const questions: Question[] = [];
             quizData.forEach((category: QuizData) => {
-                const sampled = pickRandomItems<Question>(category.preguntas as Question[], 2);
+                const sampled = pickRandomItems<Question>(category.preguntas as Question[], QUESTIONS_PER_CATEGORY);
                 const picked = sampled.map((q: Question) => ({
                     id: q.id,
                     pregunta: q.pregunta,
@@ -40,28 +69,23 @@ export const useGameplay = (
             return shuffle(questions);
         } else {
             const questions: Question[] = [];
+            const dayStartIndex = idx * QUESTIONS_PER_CATEGORY;
+            const dayEndIndex = dayStartIndex + QUESTIONS_PER_CATEGORY;
+
             quizData.forEach((category: QuizData) => {
-                const q1 = category.preguntas[idx * 2] as Question | undefined;
-                const q2 = category.preguntas[idx * 2 + 1] as Question | undefined;
-                if (q1) {
+                const dailyCategoryQuestions = category.preguntas.slice(dayStartIndex, dayEndIndex) as Question[];
+
+                dailyCategoryQuestions.forEach((question) => {
                     questions.push({
-                        id: q1.id,
-                        pregunta: q1.pregunta,
-                        opciones: q1.opciones,
-                        respuesta_correcta: q1.respuesta_correcta,
+                        id: question.id,
+                        pregunta: question.pregunta,
+                        opciones: question.opciones,
+                        respuesta_correcta: question.respuesta_correcta,
                         categoryName: category.capitulo
                     });
-                }
-                if (q2) {
-                    questions.push({
-                        id: q2.id,
-                        pregunta: q2.pregunta,
-                        opciones: q2.opciones,
-                        respuesta_correcta: q2.respuesta_correcta,
-                        categoryName: category.capitulo
-                    });
-                }
+                });
             });
+
             return questions.slice(0, QUESTIONS_PER_DAY);
         }
     }, [quizData]);
@@ -86,13 +110,15 @@ export const useGameplay = (
     }, [user]);
 
     const persistGameResults = async (finalPlayers: Player[], currentDayIndex: number, currentPlayMode: PlayMode) => {
-        if (!user) return;
+        if (!user) {
+            return { saved: false, skipped: true } as const;
+        }
 
         if (currentPlayMode === 'DAILY') {
             const alreadyPlayed = await hasPlayedDailyOnServer(currentDayIndex);
             if (alreadyPlayed) {
                 setDailyPlayLockMessage(`${currentDayIndex + 1}. eguna dagoeneko jokatu duzu. Kontu bakoitzak saio bakarra jokatu dezake egunean.`);
-                return;
+                return { saved: false, skipped: false } as const;
             }
         }
 
@@ -131,48 +157,48 @@ export const useGameplay = (
                 setDailyPlayLockMessage(`${currentDayIndex + 1}. eguna dagoeneko jokatu duzu. Kontu bakoitzak saio bakarra jokatu dezake egunean.`);
             }
             console.error("Error saving game results:", error);
+            return { saved: false, skipped: false } as const;
         }
+
+        return { saved: true, skipped: false } as const;
     };
 
     const finishGame = async (finalPlayers: Player[], currentDayIndex: number, currentPlayMode: PlayMode) => {
         const isMulti = finalPlayers.length > 1;
         const finalScore = isMulti ? Math.max(...finalPlayers.map(p => p.score)) : finalPlayers[0].score;
+        const newDailyProgress: DailyProgress = {
+            dayIndex: currentDayIndex,
+            score: finalScore,
+            completed: true,
+            date: new Date().toISOString(),
+            answers: finalPlayers[0].answers,
+            players: isMulti ? finalPlayers : undefined
+        };
 
         if (currentPlayMode === 'DAILY' && sequentialSimulationActive) {
-            const newDailyProgress: DailyProgress = {
-                dayIndex: currentDayIndex,
-                score: finalScore,
-                completed: true,
-                date: new Date().toISOString(),
-                answers: finalPlayers[0].answers,
-                players: isMulti ? finalPlayers : undefined
-            };
-
             const updatedSimProgress = [...sequentialSimulationProgress];
             updatedSimProgress[currentDayIndex] = newDailyProgress;
             setSequentialSimulationProgress(updatedSimProgress);
-        } else if (currentPlayMode === 'DAILY' && !isSimulationRun) {
-            const newDailyProgress: DailyProgress = {
-                dayIndex: currentDayIndex,
-                score: finalScore,
-                completed: true,
-                date: new Date().toISOString(),
-                answers: finalPlayers[0].answers,
-                players: isMulti ? finalPlayers : undefined
-            };
-
-            const updatedProgress = [...progress];
-            updatedProgress[currentDayIndex] = newDailyProgress;
-            setProgress(updatedProgress);
-            if (user?.id) {
-                localStorage.setItem(getUserProgressStorageKey(user.id), JSON.stringify(updatedProgress));
-            }
         }
 
+        let persistOutcome: { saved: boolean; skipped: boolean } = { saved: false, skipped: true };
         if (!isSimulationRun && !sequentialSimulationActive) {
-            await persistGameResults(finalPlayers, currentDayIndex, currentPlayMode);
+            persistOutcome = await persistGameResults(finalPlayers, currentDayIndex, currentPlayMode);
             await fetchLeaderboards(true);
             await fetchUserDailyPlays(undefined, true);
+        }
+
+        if (currentPlayMode === 'DAILY' && !isSimulationRun && !sequentialSimulationActive) {
+            const shouldStoreLocalDailyProgress = !user || persistOutcome.saved;
+
+            if (shouldStoreLocalDailyProgress) {
+                const updatedProgress = [...progress];
+                updatedProgress[currentDayIndex] = newDailyProgress;
+                setProgress(updatedProgress);
+                if (user?.id) {
+                    localStorage.setItem(getUserProgressStorageKey(user.id), JSON.stringify(updatedProgress));
+                }
+            }
         }
 
         setReviewDayIndex(null);

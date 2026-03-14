@@ -1,12 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Trophy, Lock, Star, Gamepad2, Settings } from 'lucide-react';
+import { Play, Trophy, Lock, Star, Shield } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
+import { useShallow } from 'zustand/react/shallow';
 
 // ---- SUBCOMPONENTE EDUKIA ---- //
-const EdukiaCard: React.FC = React.memo(() => {
-  const { edukiak, loadingEdukiak, dayIndex } = useAppStore();
-  const activeEdukia = edukiak[dayIndex] || null;
+type EdukiaCardProps = {
+  contentDayIndex: number;
+};
+
+const EdukiaCard: React.FC<EdukiaCardProps> = React.memo(({ contentDayIndex }) => {
+  const { edukiak, loadingEdukiak } = useAppStore(useShallow((state) => ({
+    edukiak: state.edukiak,
+    loadingEdukiak: state.loadingEdukiak
+  })));
+  const activeEdukia = edukiak[contentDayIndex] || null;
 
   return (
     <motion.section
@@ -65,8 +73,10 @@ type HomeScreenExtractedProps = {
   dailyPlayButtonDisabled: boolean;
   validatingDailyStart: boolean;
   nextAvailableDay: number;
+  currentChallengeDayIndex: number;
   timeUntilStart: number;
   formatCountdown: (ms: number) => string;
+  dailyPlayLockMessage: string | null;
   isAdmin: boolean;
   onOpenSupervisor: () => void;
   startSequentialSimulation: () => void;
@@ -76,12 +86,6 @@ type HomeScreenExtractedProps = {
 };
 
 const HomeScreen: React.FC<HomeScreenExtractedProps> = React.memo((props) => {
-  const {
-    loadingRanking, accountIdentity, usernameHistory, pendingUsername, usernameChangeNotice, usernameChangeError, user,
-    sequentialSimulationActive, adminStartDateInput, setAdminStartDateInput, isSimulationRun
-  } = useAppStore();
-  const [isSavingConfig, setIsSavingConfig] = React.useState(false);
-
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -106,7 +110,7 @@ const HomeScreen: React.FC<HomeScreenExtractedProps> = React.memo((props) => {
 
 
         {/* Tarjeta de Contenido Educativo */}
-        <EdukiaCard />
+        <EdukiaCard contentDayIndex={props.currentChallengeDayIndex} />
 
         {/* Panel de Botón Jugar Gigante */}
         <motion.section variants={itemVariants} className="w-full">
@@ -123,10 +127,10 @@ const HomeScreen: React.FC<HomeScreenExtractedProps> = React.memo((props) => {
                   {props.validatingDailyStart
                     ? 'Egiaztatzen...'
                     : props.nextAvailableDay === -4
-                      ? `ITXARON: ${props.formatCountdown(props.timeUntilStart)}`
+                      ? `Erronka hasteko: ${props.formatCountdown(props.timeUntilStart)}`
                       : props.nextAvailableDay === -1 || props.nextAvailableDay === -2
-                        ? 'GAURKOA EGINA'
-                        : `JOLASTU ABIATU (${props.nextAvailableDay + 1}. EGUNA)`}
+                        ? 'Gaurko saioa egina'
+                        : `${props.nextAvailableDay + 1}. eguneko jolasa hasi`}
                 </span>
               </button>
               {props.dailyPlayLockMessage && (
@@ -141,7 +145,7 @@ const HomeScreen: React.FC<HomeScreenExtractedProps> = React.memo((props) => {
               <h2 className="text-lg font-black uppercase text-slate-800">
                 Erronka Amaituta
               </h2>
-              <p className="text-sm font-medium text-slate-500 mt-1">Eskerrik asko parte hartzeagatik!</p>
+              <p className="text-sm font-medium text-slate-500 mt-1">11 eguneko ibilbidea osatu duzu.</p>
             </div>
           )}
         </motion.section>
@@ -151,88 +155,27 @@ const HomeScreen: React.FC<HomeScreenExtractedProps> = React.memo((props) => {
         {/* Tablero Administrativo (Kudeaketa Panela) */}
         {props.isAdmin && (
           <motion.div variants={itemVariants} className="w-full">
-            <div className="bg-[#FFFAF0] border border-amber-200 rounded-[20px] p-5">
-              <h2 className="text-[13px] font-black uppercase text-amber-700 tracking-[0.15em] mb-4">
-                Kudeaketa Panela
-              </h2>
-
-              <div className="space-y-3">
-                {/* Opcion 1: SIMULAZIO SEKUENTZIALA */}
-                <div className="bg-white border border-amber-200/60 rounded-xl p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[11px] font-black text-amber-900 uppercase tracking-widest">
-                      Simulazio Sekuentziala
-                    </span>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${sequentialSimulationActive ? 'text-emerald-500' : 'text-slate-300'}`}>
-                      {sequentialSimulationActive ? 'PIZTUTA' : 'ITZALITA'}
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={props.startSequentialSimulation}
-                      className="flex-[2] bg-[#0E906E] text-white font-black text-[11px] uppercase py-3 rounded-lg shadow-sm hover:bg-[#0c7a5d] active:scale-95 transition-all"
-                    >
-                      Hasi Simulazioa
-                    </button>
-                    <button
-                      onClick={props.stopSequentialSimulation}
-                      className="flex-1 bg-white border border-amber-400 text-amber-600 font-black text-[11px] uppercase py-3 rounded-lg shadow-sm hover:bg-amber-50 active:scale-95 transition-all"
-                    >
-                      Gelditu
-                    </button>
-                  </div>
+            <div className="rounded-[20px] border border-amber-200 bg-[#FFFAF0] p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                  <Shield size={20} />
                 </div>
-
-                {/* Opcion 2: DATE SELECTOR */}
-                <div className="bg-white border border-amber-200/60 rounded-xl p-4 flex flex-col sm:flex-row gap-2 items-center">
-                  <div className="flex-1 w-full bg-white border border-amber-200/60 rounded-lg px-3 py-2.5 flex justify-between items-center">
-                    <input
-                      type="date"
-                      aria-label="Data aldatu"
-                      title="Data aldatu"
-                      value={adminStartDateInput}
-                      onChange={(e) => setAdminStartDateInput(e.target.value)}
-                      className="w-full outline-none bg-transparent text-sm font-bold text-slate-700"
-                    />
-                  </div>
-                  <div className="flex w-full sm:w-auto gap-2">
-                    <button
-                      disabled={isSavingConfig}
-                      onClick={() => props.saveChallengeStartDate(setIsSavingConfig)}
-                      className="flex-1 sm:flex-none bg-[#F59E0B] text-white font-black text-[11px] uppercase py-3 px-5 rounded-lg shadow-sm hover:bg-amber-600 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      Gorde
-                    </button>
-                    <button
-                      disabled={isSavingConfig}
-                      onClick={() => props.resetChallengeStartDate(setIsSavingConfig)}
-                      className="flex-1 sm:flex-none bg-white border border-amber-400 text-amber-600 font-black text-[11px] uppercase py-3 px-3 rounded-lg shadow-sm hover:bg-amber-50 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      Berrezarri
-                    </button>
-                  </div>
+                <div className="flex-1">
+                  <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-amber-800">
+                    Ikuskaritza
+                  </h2>
+                  <p className="mt-2 text-sm font-medium text-amber-900">
+                    Erronkaren egutegia, jokalarien datuak eta galdera-bankua toki bakarrean kudeatu.
+                  </p>
                 </div>
-
-                {/* Opcion 3: SIMULAZIOA STATUS + DATA BASEA */}
-                <div className="bg-white border border-amber-200/60 rounded-xl p-4 flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <span className="text-[11px] font-black text-amber-900 uppercase tracking-widest">
-                      Simulazioa Librea
-                    </span>
-                    <span className={`text-[10px] font-black bg-slate-100 px-3 py-1 rounded-full uppercase tracking-widest ${isSimulationRun ? 'text-emerald-500' : 'text-slate-400'}`}>
-                      {isSimulationRun ? 'AKTIBATUTA' : 'DESAKTIBATUTA'}
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={props.onOpenSupervisor}
-                    className="bg-slate-800 text-white font-black text-[10px] uppercase px-4 py-2 rounded-lg shadow-sm hover:bg-slate-700 active:scale-95 transition-all"
-                  >
-                    Datu-Basea Ireki
-                  </button>
-                </div>
-
               </div>
+
+              <button
+                onClick={props.onOpenSupervisor}
+                className="mt-4 w-full rounded-2xl bg-slate-900 px-4 py-4 text-[11px] font-black uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-slate-800"
+              >
+                Ireki ikuskaritza panela
+              </button>
             </div>
           </motion.div>
         )}

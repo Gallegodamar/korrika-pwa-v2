@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Timer, Check, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { Question } from '../types';
+import { useShallow } from 'zustand/react/shallow';
 
 type QuizScreenProps = {
   question: Question;
@@ -85,7 +86,10 @@ const QuizScreen: React.FC<QuizScreenProps> = React.memo(
     timerKey,
     secondsPerQuestion = 20
   }) => {
-    const { players, currentPlayerIdx } = useAppStore();
+    const { players, currentPlayerIdx } = useAppStore(useShallow((state) => ({
+      players: state.players,
+      currentPlayerIdx: state.currentPlayerIdx
+    })));
     const playerName = players[currentPlayerIdx]?.name ?? 'Jokalaria';
     const answeredRef = useRef(false);
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -166,7 +170,10 @@ const QuizScreen: React.FC<QuizScreenProps> = React.memo(
           </motion.div>
 
           {/* Opciones */}
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 overflow-y-auto pb-6 custom-scrollbar">
+          <div
+            className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 overflow-y-auto overflow-x-hidden pb-6 custom-scrollbar"
+            style={{ overflowAnchor: 'none' }}
+          >
             {optionEntries.map(([key, value]) => {
               const isSelected = selectedKey === key;
               const isOtherSelected = selectedKey !== null && !isSelected;
@@ -175,11 +182,11 @@ const QuizScreen: React.FC<QuizScreenProps> = React.memo(
                 <motion.button
                   variants={itemVariants}
                   key={key}
-                  whileHover={!selectedKey ? { scale: 1.02 } : {}}
-                  whileTap={!selectedKey ? { scale: 0.96 } : {}}
-                  onClick={() => {
+                  type="button"
+                  onClick={(event) => {
                     if (answeredRef.current) return;
                     answeredRef.current = true;
+                    event.currentTarget.blur();
                     setSelectedKey(key);
                     // Añadir una ligera vibración al seleccionar si el dispositivo lo soporta
                     if (navigator.vibrate) navigator.vibrate(50);
@@ -189,8 +196,8 @@ const QuizScreen: React.FC<QuizScreenProps> = React.memo(
                     }, 400);
                   }}
                   disabled={selectedKey !== null}
-                  className={`group relative w-full text-left px-5 sm:px-6 py-4 rounded-3xl border shadow-sm transition-all flex items-center gap-4 ${isSelected
-                    ? "border-pink-500 bg-pink-50/90 shadow-[0_0_15px_rgba(236,72,153,0.3)] scale-[1.02] z-10"
+                  className={`group relative w-full text-left px-5 sm:px-6 py-4 rounded-3xl border shadow-sm transition-colors duration-200 flex items-center gap-4 ${isSelected
+                    ? "border-pink-500 bg-pink-50/90 shadow-[0_0_15px_rgba(236,72,153,0.18)] ring-2 ring-pink-200/70"
                     : isOtherSelected
                       ? "border-white/20 bg-white/40 opacity-50 grayscale-[50%]"
                       : "border-white/40 bg-white/70 backdrop-blur-md hover:shadow-lg hover:border-pink-300 hover:bg-white"
@@ -199,8 +206,8 @@ const QuizScreen: React.FC<QuizScreenProps> = React.memo(
                   <div className={`absolute top-0 left-0 w-1.5 h-full rounded-l-3xl transition-colors ${isSelected ? "bg-pink-500" : "bg-transparent group-hover:bg-pink-400"
                     }`} />
 
-                  <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-lg sm:text-xl shrink-0 transition-all ${isSelected
-                    ? "bg-pink-500 text-white shadow-md scale-110"
+                  <span className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center font-black text-lg sm:text-xl shrink-0 transition-colors duration-200 ${isSelected
+                    ? "bg-pink-500 text-white shadow-md"
                     : "bg-pink-50 text-pink-600 group-hover:bg-pink-100 group-hover:text-pink-700"
                     }`}>
                     {isSelected ? <Check strokeWidth={4} className="w-6 h-6 sm:w-8 sm:h-8" /> : key.toUpperCase()}

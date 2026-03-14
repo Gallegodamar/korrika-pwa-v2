@@ -9,6 +9,7 @@ import BottomNav from './components/BottomNav';
 const CountdownScreen = React.lazy(() => import('./components/CountdownScreen'));
 const QuizScreen = React.lazy(() => import('./components/QuizScreen'));
 const HomeScreen = React.lazy(() => import('./components/screens/HomeScreen'));
+const WelcomeScreen = React.lazy(() => import('./components/screens/WelcomeScreen'));
 const PlayerSetupScreen = React.lazy(() => import('./components/screens/PlayerSetupScreen'));
 const UsernameSetupScreen = React.lazy(() => import('./components/screens/UsernameSetupScreen'));
 const TurnTransitionScreen = React.lazy(() => import('./components/screens/TurnTransitionScreen'));
@@ -61,6 +62,7 @@ import {
   START_DATE_CACHE_KEY,
   LEADERBOARDS_CACHE_KEY,
   USER_DAILY_PLAYS_CACHE_PREFIX,
+  WELCOME_SEEN_STORAGE_PREFIX,
   GLOBAL_CONFIG_TABLE,
   START_DATE_CONFIG_KEY,
   DAYS_COUNT,
@@ -107,10 +109,9 @@ import { useGameProgress } from './hooks/useGameProgress';
 import { useGameSimulation } from './hooks/useGameSimulation';
 import { useGameplay } from './hooks/useGameplay';
 import { useAppProfiler } from './hooks/useAppProfiler';
+import { useShallow } from 'zustand/react/shallow';
 
 const App: React.FC = () => {
-  const store = useAppStore();
-
   const {
     user, loadingAuth, accountIdentity, usernameHistory, pendingUsername, loadingAccount,
     usernameChangeError, usernameChangeNotice, gameState, playMode, dayIndex,
@@ -132,20 +133,107 @@ const App: React.FC = () => {
     dailyPlayLockMessage,
     fetchRegisteredPlayers, fetchLeaderboards, fetchUserDailyPlays,
     fetchEdukiak, fetchQuizData, fetchGlobalStartDate, fetchAccountIdentity
-  } = store;
+  } = useAppStore(useShallow((state) => ({
+    user: state.user,
+    loadingAuth: state.loadingAuth,
+    accountIdentity: state.accountIdentity,
+    usernameHistory: state.usernameHistory,
+    pendingUsername: state.pendingUsername,
+    loadingAccount: state.loadingAccount,
+    usernameChangeError: state.usernameChangeError,
+    usernameChangeNotice: state.usernameChangeNotice,
+    gameState: state.gameState,
+    playMode: state.playMode,
+    dayIndex: state.dayIndex,
+    currentQuestionIdx: state.currentQuestionIdx,
+    challengeStartDate: state.challengeStartDate,
+    adminStartDateInput: state.adminStartDateInput,
+    quizData: state.quizData,
+    loadingData: state.loadingData,
+    edukiak: state.edukiak,
+    loadingEdukiak: state.loadingEdukiak,
+    registeredPlayers: state.registeredPlayers,
+    progress: state.progress,
+    userDailyPlays: state.userDailyPlays,
+    activeQuestions: state.activeQuestions,
+    players: state.players,
+    currentPlayerIdx: state.currentPlayerIdx,
+    tempPlayerNames: state.tempPlayerNames,
+    leaderboardRows: state.leaderboardRows,
+    loadingRanking: state.loadingRanking,
+    isSimulationRun: state.isSimulationRun,
+    reviewDayIndex: state.reviewDayIndex,
+    sequentialSimulationActive: state.sequentialSimulationActive,
+    sequentialSimulationDay: state.sequentialSimulationDay,
+    sequentialSimulationProgress: state.sequentialSimulationProgress,
+    currentTab: state.currentTab,
+    setUser: state.setUser,
+    setGameState: state.setGameState,
+    setLoadingAuth: state.setLoadingAuth,
+    setAccountIdentity: state.setAccountIdentity,
+    setUsernameHistory: state.setUsernameHistory,
+    setPendingUsername: state.setPendingUsername,
+    setLoadingData: state.setLoadingData,
+    setQuizData: state.setQuizData,
+    setLeaderboardRows: state.setLeaderboardRows,
+    setUserDailyPlays: state.setUserDailyPlays,
+    setRegisteredPlayers: state.setRegisteredPlayers,
+    setEdukiak: state.setEdukiak,
+    setLoadingEdukiak: state.setLoadingEdukiak,
+    setChallengeStartDate: state.setChallengeStartDate,
+    setAdminStartDateInput: state.setAdminStartDateInput,
+    setProgress: state.setProgress,
+    setUsernameChangeError: state.setUsernameChangeError,
+    setUsernameChangeNotice: state.setUsernameChangeNotice,
+    setPlayers: state.setPlayers,
+    setCurrentPlayerIdx: state.setCurrentPlayerIdx,
+    setCurrentQuestionIdx: state.setCurrentQuestionIdx,
+    setPlayMode: state.setPlayMode,
+    setDayIndex: state.setDayIndex,
+    setActiveQuestions: state.setActiveQuestions,
+    setTempPlayerNames: state.setTempPlayerNames,
+    setIsSimulationRun: state.setIsSimulationRun,
+    setReviewDayIndex: state.setReviewDayIndex,
+    setSequentialSimulationActive: state.setSequentialSimulationActive,
+    setSequentialSimulationDay: state.setSequentialSimulationDay,
+    setSequentialSimulationProgress: state.setSequentialSimulationProgress,
+    setDailyPlayLockMessage: state.setDailyPlayLockMessage,
+    setCurrentTab: state.setCurrentTab,
+    dailyPlayLockMessage: state.dailyPlayLockMessage,
+    fetchRegisteredPlayers: state.fetchRegisteredPlayers,
+    fetchLeaderboards: state.fetchLeaderboards,
+    fetchUserDailyPlays: state.fetchUserDailyPlays,
+    fetchEdukiak: state.fetchEdukiak,
+    fetchQuizData: state.fetchQuizData,
+    fetchGlobalStartDate: state.fetchGlobalStartDate,
+    fetchAccountIdentity: state.fetchAccountIdentity
+  })));
 
   const [nowTs, setNowTs] = useState(() => Date.now());
   const [simulationEnabled, setSimulationEnabled] = useState(false);
   const [simulationDayIndex, setSimulationDayIndex] = useState(0);
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(false);
 
   const progressStorageKey = useMemo(
     () => (user?.id ? getUserProgressStorageKey(user.id) : null),
+    [user?.id]
+  );
+  const welcomeStorageKey = useMemo(
+    () => (user?.id ? `${WELCOME_SEEN_STORAGE_PREFIX}_${user.id}` : null),
     [user?.id]
   );
 
   const autoplayStartedRef = useRef(false);
   const autoplayQuestionRef = useRef<number | null>(null);
   const { profilingEnabled, profileRows, renderWithProfiler } = useAppProfiler();
+  const simulationTodayForProgress = useMemo(() => {
+    if (!sequentialSimulationActive) return null;
+
+    const nextSimulationDate = new Date(`${challengeStartDate}T00:00:00`);
+    nextSimulationDate.setDate(nextSimulationDate.getDate() + sequentialSimulationDay);
+    nextSimulationDate.setHours(0, 0, 0, 0);
+    return nextSimulationDate;
+  }, [challengeStartDate, sequentialSimulationActive, sequentialSimulationDay]);
 
   const profilingDemoEnabled = useMemo(() => {
     if (typeof window === 'undefined' || !import.meta.env.DEV) return false;
@@ -162,14 +250,8 @@ const App: React.FC = () => {
       fetchGlobalStartDate(true),
       fetchRegisteredPlayers(true),
       fetchAccountIdentity(),
-      (async () => {
-        await fetchLeaderboards();
-        await fetchLeaderboards(true);
-      })(),
-      (async () => {
-        await fetchUserDailyPlays(targetUserId);
-        await fetchUserDailyPlays(targetUserId, true);
-      })()
+      fetchLeaderboards(true),
+      fetchUserDailyPlays(targetUserId, true)
     ]);
   }, [fetchGlobalStartDate, fetchRegisteredPlayers, fetchAccountIdentity, fetchLeaderboards, fetchUserDailyPlays]);
 
@@ -210,6 +292,7 @@ const App: React.FC = () => {
       setLoadingAuth(false);
       setLoadingData(false);
       setGameState(GameState.HOME);
+      setCurrentTab('home');
       setQuizData(PROFILING_DEMO_QUIZ_DATA);
       setLeaderboardRows([]);
       setUserDailyPlays([]);
@@ -231,6 +314,7 @@ const App: React.FC = () => {
         if (session?.user) {
           setUser(session.user);
           setGameState(GameState.HOME);
+          setCurrentTab('home');
           void refreshPostAuthData(session.user.id);
         }
       } catch (err) {
@@ -246,9 +330,7 @@ const App: React.FC = () => {
     checkUser();
     fetchGlobalStartDate();
     fetchQuizData();
-    fetchLeaderboards();
     fetchEdukiak();
-    fetchRegisteredPlayers();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'INITIAL_SESSION') return;
@@ -256,6 +338,7 @@ const App: React.FC = () => {
       if (session?.user) {
         setProgress([]);
         setGameState(GameState.HOME);
+        setCurrentTab('home');
         setDailyPlayLockMessage(null);
         void refreshPostAuthData(session.user.id);
       } else {
@@ -265,8 +348,7 @@ const App: React.FC = () => {
         setUsernameChangeError(null);
         setUsernameChangeNotice(null);
         setGameState(GameState.AUTH);
-
-        quizDataRequestRef_obsolet: true;
+        setCurrentTab('home');
         setDailyPlayLockMessage(null);
         setUserDailyPlays([]);
         setProgress([]);
@@ -317,6 +399,7 @@ const App: React.FC = () => {
     setUser(null);
     setAccountIdentity(null);
     setGameState(GameState.AUTH);
+    setCurrentTab('home');
     setPendingUsername('');
     setUsernameHistory([]);
     setUsernameChangeError(null);
@@ -326,6 +409,7 @@ const App: React.FC = () => {
     setUserDailyPlays([]);
     setProgress([]);
     setReviewDayIndex(null);
+    setShowWelcomeScreen(false);
     setSequentialSimulationActive(false);
     setSequentialSimulationDay(0);
     setSequentialSimulationProgress([]);
@@ -338,7 +422,7 @@ const App: React.FC = () => {
     currentChallengeDayIndex,
     effectiveDailyProgress,
     nextAvailableDay
-  } = useGameProgress(null); // The simulationToday logic from useGameSimulation will be passed soon
+  } = useGameProgress(simulationTodayForProgress);
 
   const {
     initGame,
@@ -349,7 +433,6 @@ const App: React.FC = () => {
   } = useGameplay(userDisplayName, isAdmin, nextAvailableDay);
 
   const {
-    simulationToday,
     startSimulationDay,
     saveChallengeStartDate,
     resetChallengeStartDate,
@@ -370,13 +453,49 @@ const App: React.FC = () => {
   const dailyPlayButtonDisabled = validatingDailyStart || nextAvailableDay < 0;
 
   const challengeStartTs = useMemo(() => new Date(`${challengeStartDate}T00:00:00`).getTime(), [challengeStartDate]);
-  const effectiveNowTs = simulationToday ? simulationToday.getTime() : nowTs;
+  const effectiveNowTs = simulationTodayForProgress ? simulationTodayForProgress.getTime() : nowTs;
   const timeUntilStart = Math.max(0, challengeStartTs - effectiveNowTs);
 
   const completedDayIndexes = useMemo(
     () => effectiveDailyProgress.map((day, idx) => (day?.completed ? idx : -1)).filter((idx) => idx >= 0),
     [effectiveDailyProgress]
   );
+
+  const needsUsernameSetup = !!(user && !loadingAccount && accountIdentity && usernameHistory.length === 0);
+
+  useEffect(() => {
+    if (!welcomeStorageKey || loadingAuth || loadingAccount || gameState !== GameState.HOME || needsUsernameSetup) {
+      setShowWelcomeScreen(false);
+      return;
+    }
+
+    const alreadySeenWelcome = localStorage.getItem(welcomeStorageKey) === '1';
+    setShowWelcomeScreen(!alreadySeenWelcome);
+
+    if (!alreadySeenWelcome) {
+      setCurrentTab('home');
+    }
+  }, [welcomeStorageKey, loadingAuth, loadingAccount, gameState, needsUsernameSetup, setCurrentTab]);
+
+  const handleDismissWelcome = useCallback(() => {
+    if (welcomeStorageKey) {
+      localStorage.setItem(welcomeStorageKey, '1');
+    }
+    setCurrentTab('home');
+    setShowWelcomeScreen(false);
+  }, [welcomeStorageKey, setCurrentTab]);
+
+  const handleBottomNavChange = useCallback((tab: 'home' | 'history' | 'ranking' | 'profile') => {
+    if (gameState === GameState.RESULTS && reviewDayIndex !== null) {
+      setReviewDayIndex(null);
+      setGameState(GameState.HOME);
+    }
+    setCurrentTab(tab);
+  }, [gameState, reviewDayIndex, setCurrentTab, setGameState, setReviewDayIndex]);
+
+  const showBottomNav =
+    (gameState === GameState.HOME && !needsUsernameSetup && !showWelcomeScreen) ||
+    (gameState === GameState.RESULTS && reviewDayIndex !== null);
 
   if ((loadingAuth || loadingData) && (gameState === GameState.AUTH || gameState === GameState.HOME)) {
     return (
@@ -386,8 +505,6 @@ const App: React.FC = () => {
       </div>
     );
   }
-
-  const needsUsernameSetup = !!(user && !loadingAccount && accountIdentity && usernameHistory.length === 0);
 
   return (
     <div className={`fixed inset-0 w-full flex flex-col bg-gray-50 text-gray-800 ${gameState !== GameState.AUTH ? 'overflow-hidden' : 'overflow-auto'}`}>
@@ -436,7 +553,14 @@ const App: React.FC = () => {
             )
           )}
 
-          {gameState === GameState.HOME && !needsUsernameSetup && (
+          {gameState === GameState.HOME && !needsUsernameSetup && showWelcomeScreen && (
+            renderWithProfiler(
+              'WelcomeScreen',
+              <WelcomeScreen onContinue={handleDismissWelcome} />
+            )
+          )}
+
+          {gameState === GameState.HOME && !needsUsernameSetup && !showWelcomeScreen && (
             <div className="flex-1 w-full pb-20 overflow-y-auto overscroll-y-none">
               {currentTab === 'home' && renderWithProfiler(
                 'HomeScreen',
@@ -446,10 +570,10 @@ const App: React.FC = () => {
                   dailyPlayButtonDisabled={dailyPlayButtonDisabled}
                   validatingDailyStart={validatingDailyStart}
                   nextAvailableDay={nextAvailableDay}
+                  currentChallengeDayIndex={currentChallengeDayIndex}
                   timeUntilStart={timeUntilStart}
                   formatCountdown={formatCountdown}
                   dailyPlayLockMessage={dailyPlayLockMessage}
-                  completedDayIndexes={completedDayIndexes}
                   isAdmin={isAdmin}
                   onOpenSupervisor={() => setGameState(GameState.SUPERVISOR)}
                   startSequentialSimulation={startSequentialSimulation}
@@ -465,6 +589,7 @@ const App: React.FC = () => {
                   completedDayIndexes={completedDayIndexes}
                   onReviewDay={handleReviewDay}
                   nextAvailableDay={nextAvailableDay}
+                  currentChallengeDayIndex={currentChallengeDayIndex}
                 />
               )}
 
@@ -480,8 +605,8 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {gameState === GameState.HOME && !needsUsernameSetup && (
-            <BottomNav currentTab={currentTab} onChangeTab={setCurrentTab} />
+          {showBottomNav && (
+            <BottomNav currentTab={currentTab} onChangeTab={handleBottomNavChange} />
           )}
 
           {gameState === GameState.PLAYER_SETUP && (

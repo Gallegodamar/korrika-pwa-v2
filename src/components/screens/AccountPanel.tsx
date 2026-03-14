@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, CheckCircle2, XCircle, Clock, ShieldAlert, BadgeCheck } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { changeMyUsername, mapAccountApiError } from '../../services/accountApi';
+import { useShallow } from 'zustand/react/shallow';
 
 const formatChangeDate = (value: string) => {
   const parsed = new Date(value);
@@ -12,6 +13,12 @@ const formatChangeDate = (value: string) => {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(parsed);
+};
+
+const getHistorySourceLabel = (source: string) => {
+  if (source === 'self_service') return 'Zuk egina';
+  if (source === 'admin_panel') return 'Administrazioak egina';
+  return 'Sistemak egina';
 };
 
 const AccountPanel: React.FC = React.memo(() => {
@@ -28,11 +35,29 @@ const AccountPanel: React.FC = React.memo(() => {
     setUsernameChangeNotice,
     fetchAccountIdentity,
     fetchRegisteredPlayers
-  } = useAppStore();
+  } = useAppStore(useShallow((state) => ({
+    user: state.user,
+    accountIdentity: state.accountIdentity,
+    usernameHistory: state.usernameHistory,
+    pendingUsername: state.pendingUsername,
+    usernameChangeError: state.usernameChangeError,
+    usernameChangeNotice: state.usernameChangeNotice,
+    loadingAccount: state.loadingAccount,
+    setPendingUsername: state.setPendingUsername,
+    setUsernameChangeError: state.setUsernameChangeError,
+    setUsernameChangeNotice: state.setUsernameChangeNotice,
+    fetchAccountIdentity: state.fetchAccountIdentity,
+    fetchRegisteredPlayers: state.fetchRegisteredPlayers
+  })));
 
   const [changingUsername, setChangingUsername] = useState(false);
+  const isAdmin = Boolean(accountIdentity?.is_admin);
 
-  const currentUsername = user?.user_metadata?.username || user?.email || 'Jokalaria';
+  const currentUsername =
+    accountIdentity?.current_username ||
+    user?.user_metadata?.username ||
+    user?.email ||
+    'Jokalaria';
   const previousUsernames = accountIdentity?.previous_usernames || [];
 
   const handleSubmitUsernameChange = async (e: React.FormEvent) => {
@@ -154,11 +179,11 @@ const AccountPanel: React.FC = React.memo(() => {
             disabled={changingUsername || loadingAccount || !pendingUsername.trim()}
             className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-3.5 text-sm sm:text-base font-black uppercase tracking-wider text-white shadow-md shadow-sky-500/20 transition-all disabled:opacity-50 hover:shadow-lg disabled:cursor-not-allowed disabled:hover:shadow-md"
           >
-            {changingUsername ? 'Aldatzen...' : 'Gardetu izen berria'}
+            {changingUsername ? 'Aldatzen...' : 'Gorde izen berria'}
           </motion.button>
         </form>
 
-        {(previousUsernames.length > 0 || usernameHistory.length > 0) && (
+        {isAdmin && (previousUsernames.length > 0 || usernameHistory.length > 0) && (
           <div className="mt-6 pt-6 border-t border-sky-100/50 space-y-5 relative z-10">
             {previousUsernames.length > 0 && (
               <div className="space-y-3">
@@ -202,6 +227,9 @@ const AccountPanel: React.FC = React.memo(() => {
                       </div>
                       <p className="text-[10px] font-bold text-slate-400/80">
                         {formatChangeDate(entry.changed_at)}
+                      </p>
+                      <p className="mt-2 inline-flex rounded-full bg-sky-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-sky-700">
+                        {getHistorySourceLabel(entry.source)}
                       </p>
                     </article>
                   ))}

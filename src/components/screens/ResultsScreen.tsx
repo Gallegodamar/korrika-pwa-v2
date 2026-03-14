@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Trophy, ArrowLeft, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../../store/useAppStore';
 import { GameState } from '../../types';
+import { useShallow } from 'zustand/react/shallow';
 
 type ResultsFeedback = {
   text: string;
@@ -78,13 +79,24 @@ const ResultsScreen: React.FC = React.memo(() => {
     setGameState,
     setReviewDayIndex,
     setIsSimulationRun
-  } = useAppStore();
+  } = useAppStore(useShallow((state) => ({
+    players: state.players,
+    currentPlayerIdx: state.currentPlayerIdx,
+    reviewDayIndex: state.reviewDayIndex,
+    progress: state.progress,
+    sequentialSimulationProgress: state.sequentialSimulationProgress,
+    setGameState: state.setGameState,
+    setReviewDayIndex: state.setReviewDayIndex,
+    setIsSimulationRun: state.setIsSimulationRun
+  })));
 
   const handleBack = () => {
     setReviewDayIndex(null);
     setIsSimulationRun(false);
     setGameState(GameState.HOME);
   };
+
+  const backLabel = reviewDayIndex !== null ? 'Itzuli ibilbidera' : 'Itzuli hasierara';
 
   // Determinar de dónde sacar los resultados basados en si estamos revisando el histórico o el fin de partida.
   const activeProgressArr = sequentialSimulationProgress.length > 0 ? sequentialSimulationProgress : progress;
@@ -148,7 +160,7 @@ const ResultsScreen: React.FC = React.memo(() => {
                 <span className="text-2xl sm:text-3xl font-bold opacity-50"> / {resultsTotal}</span>
               </p>
               <div className={`text-sm sm:text-base font-black px-4 py-1.5 rounded-full ${isGood ? 'bg-pink-200 text-pink-700' : 'bg-slate-200 text-slate-600'} mb-1 sm:mb-2`}>
-                {successRatio}% Zuzena
+                %{successRatio} Zuzena
               </div>
             </div>
 
@@ -170,7 +182,7 @@ const ResultsScreen: React.FC = React.memo(() => {
             className="mt-6 w-full flex items-center justify-center gap-3 bg-slate-800 text-white py-4 rounded-2xl font-black uppercase tracking-wider text-sm sm:text-base shadow-lg hover:bg-slate-700 active:scale-95 transition-all relative z-10"
           >
             <ArrowLeft size={20} />
-            Itzuli Menura
+            {backLabel}
           </motion.button>
         </motion.div>
 

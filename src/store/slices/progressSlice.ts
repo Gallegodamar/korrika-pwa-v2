@@ -117,12 +117,14 @@ export const createProgressSlice: StateCreator<ProgressSlice & AuthSlice, [], []
         const request = (async () => {
             try {
                 const rows = await getUserDailyPlays(targetUserId, DAYS_COUNT);
-                set({ userDailyPlays: rows });
                 writeLocalCache(cacheKey, rows);
                 reqCache.userDailyPlaysFetchedAt.set(targetUserId, Date.now());
+                if (get().user?.id !== targetUserId) return;
+                set({ userDailyPlays: rows });
             } catch (err) {
                 console.error('Error fetching user daily plays:', err);
                 const cachedRows = readLocalCache<UserDailyPlayRow[]>(cacheKey, USER_DAILY_PLAYS_CACHE_TTL_MS);
+                if (get().user?.id !== targetUserId) return;
                 set({ userDailyPlays: cachedRows || [] });
             }
         })();

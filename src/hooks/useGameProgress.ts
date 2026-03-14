@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { getLocalDateKey, mapStoredAnswersToUserAnswers } from '../utils/helpers';
 import { normalizeUsername } from '../services/accountApi';
 import { DAYS_COUNT, LEGACY_ADMIN_USERS } from '../utils/constants';
+import { useShallow } from 'zustand/react/shallow';
 
 export const useGameProgress = (simulationToday: Date | null) => {
     const {
@@ -13,7 +14,15 @@ export const useGameProgress = (simulationToday: Date | null) => {
         userDailyPlays,
         sequentialSimulationActive,
         sequentialSimulationProgress
-    } = useAppStore();
+    } = useAppStore(useShallow((state) => ({
+        user: state.user,
+        accountIdentity: state.accountIdentity,
+        challengeStartDate: state.challengeStartDate,
+        progress: state.progress,
+        userDailyPlays: state.userDailyPlays,
+        sequentialSimulationActive: state.sequentialSimulationActive,
+        sequentialSimulationProgress: state.sequentialSimulationProgress
+    })));
 
     const currentUsername = useMemo(() => {
         const identityUsername = normalizeUsername(accountIdentity?.current_username ?? '');
@@ -48,13 +57,13 @@ export const useGameProgress = (simulationToday: Date | null) => {
             const existing = merged[play.day_index];
             const serverAnswers = mapStoredAnswersToUserAnswers(play.answers ?? []);
             const existingAnswers = existing?.answers ?? [];
-            const mergedAnswers = existingAnswers.length > 0 ? existingAnswers : serverAnswers;
-            const mergedScore = existing?.score ?? play.correct_answers ?? 0;
+            const mergedAnswers = serverAnswers.length > 0 ? serverAnswers : existingAnswers;
+            const mergedScore = typeof play.correct_answers === 'number' ? play.correct_answers : existing?.score ?? 0;
             merged[play.day_index] = {
                 dayIndex: play.day_index,
                 score: mergedScore,
                 completed: true,
-                date: existing?.date ?? play.played_at,
+                date: play.played_at || existing?.date || new Date().toISOString(),
                 answers: mergedAnswers,
                 players: existing?.players
             };

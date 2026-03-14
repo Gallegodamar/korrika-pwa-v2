@@ -7,9 +7,17 @@ type HistoryScreenProps = {
     completedDayIndexes: number[];
     onReviewDay: (dayIndex: number) => void;
     nextAvailableDay: number;
+    currentChallengeDayIndex: number;
 };
 
-const HistoryScreen: React.FC<HistoryScreenProps> = React.memo(({ completedDayIndexes, onReviewDay, nextAvailableDay }) => {
+const HistoryScreen: React.FC<HistoryScreenProps> = React.memo(({ completedDayIndexes, onReviewDay, nextAvailableDay, currentChallengeDayIndex }) => {
+    const todayUnlockedIndex =
+        nextAvailableDay === -5
+            ? DAYS_COUNT - 1
+            :
+        nextAvailableDay === -1 || nextAvailableDay === -2
+            ? currentChallengeDayIndex
+            : nextAvailableDay;
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -48,7 +56,8 @@ const HistoryScreen: React.FC<HistoryScreenProps> = React.memo(({ completedDayIn
             >
                 {Array.from({ length: DAYS_COUNT }).map((_, idx) => {
                     const isCompleted = completedDayIndexes.includes(idx);
-                    const isAvailable = idx <= (nextAvailableDay === -1 || nextAvailableDay === -2 ? 999 : nextAvailableDay);
+                    const isCurrentDay = idx === todayUnlockedIndex;
+                    const isAvailable = todayUnlockedIndex >= 0 && idx <= todayUnlockedIndex;
                     const isLocked = !isCompleted && !isAvailable;
 
                     return (
@@ -62,11 +71,12 @@ const HistoryScreen: React.FC<HistoryScreenProps> = React.memo(({ completedDayIn
                 ${isCompleted
                                     ? 'bg-transparent border-emerald-500 text-emerald-700 shadow-[0_5px_15px_-5px_rgba(16,185,129,0.2)] hover:bg-emerald-50 active:scale-95 cursor-pointer cursor-allowed'
                                     : isLocked
-                                        ? 'bg-slate-50 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed hidden'
-                                        : 'bg-white border-pink-200 text-pink-400 shadow-sm cursor-not-allowed opacity-80'
+                                        ? 'bg-slate-50 border-slate-200 text-slate-400 opacity-70 cursor-not-allowed'
+                                        : isCurrentDay
+                                            ? 'bg-pink-50 border-pink-300 text-pink-600 shadow-sm cursor-not-allowed'
+                                            : 'bg-white border-slate-200 text-slate-400 shadow-sm cursor-not-allowed'
                                 }
               `}
-                            style={{ display: isLocked ? 'none' : 'flex' }}
                         >
                             <span className="text-sm font-black tracking-widest uppercase mb-1 opacity-70">
                                 {idx + 1}. EG
@@ -74,11 +84,21 @@ const HistoryScreen: React.FC<HistoryScreenProps> = React.memo(({ completedDayIn
 
                             {isCompleted ? (
                                 <div className="flex flex-col items-center gap-1">
-                                    <span className="text-xs font-bold text-center leading-none text-emerald-600/70">Ikusi</span>
+                                    <span className="text-xs font-bold text-center leading-none text-emerald-600/70">Berrikusi</span>
                                     <CheckCircle2 size={24} className="text-emerald-500" />
                                 </div>
+                            ) : isCurrentDay ? (
+                                <div className="flex flex-col items-center gap-1">
+                                    <span className="text-xs font-bold text-center leading-none text-pink-600/80">Gaur</span>
+                                    <Calendar size={22} className="text-pink-500" />
+                                </div>
                             ) : (
-                                <Lock size={20} className="text-slate-300" />
+                                <div className="flex flex-col items-center gap-1">
+                                    <span className="text-xs font-bold text-center leading-none text-slate-400">
+                                        {isLocked ? 'Blokeatuta' : 'Jokatu gabe'}
+                                    </span>
+                                    <Lock size={20} className="text-slate-300" />
+                                </div>
                             )}
                         </motion.button>
                     );
@@ -88,8 +108,8 @@ const HistoryScreen: React.FC<HistoryScreenProps> = React.memo(({ completedDayIn
             {completedDayIndexes.length === 0 && (
                 <div className="mt-12 text-center p-8 glassmorphism rounded-3xl border border-slate-200/50 text-slate-500">
                     <Calendar className="mx-auto mb-3 opacity-20" size={48} />
-                    <p className="font-bold text-lg text-slate-700">Ez duzu oraindik jokatu</p>
-                    <p className="text-xs font-medium mt-1">Hasi zure lehenengo eguna "Inicio" atalean orain bertan!</p>
+                    <p className="font-bold text-lg text-slate-700">Oraindik ez duzu egunik jokatu</p>
+                    <p className="text-xs font-medium mt-1">Joan Hasiera atalera eta hasi gaurko erronka.</p>
                 </div>
             )}
         </div>

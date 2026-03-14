@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
+import { useShallow } from 'zustand/react/shallow';
 
 type CountdownScreenProps = {
   onComplete: () => void;
@@ -9,7 +10,10 @@ type CountdownScreenProps = {
 
 const CountdownScreen: React.FC<CountdownScreenProps> = React.memo(
   ({ onComplete, startFrom = 3 }) => {
-    const { players, currentPlayerIdx } = useAppStore();
+    const { players, currentPlayerIdx } = useAppStore(useShallow((state) => ({
+      players: state.players,
+      currentPlayerIdx: state.currentPlayerIdx
+    })));
     const playerName = players[currentPlayerIdx]?.name ?? 'Jokalaria';
     const [countdown, setCountdown] = useState(startFrom);
 

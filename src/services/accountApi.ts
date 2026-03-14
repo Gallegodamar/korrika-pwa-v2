@@ -59,6 +59,16 @@ export const mapAccountApiError = (error: Pick<PostgrestError, 'code' | 'message
     return 'Erabiltzaile hori dagoeneko erabilita edo erreserbatuta dago.';
   }
   if (error.code === '22023') {
+    const normalizedMessage = String(error.message || '').toLowerCase();
+    if (normalizedMessage.includes('use_change_my_username_for_self')) {
+      return 'Zure izena aldatzeko, erabili Profila atala.';
+    }
+    if (normalizedMessage.includes('cannot_clear_own_results_from_admin')) {
+      return 'Zure emaitzak ezabatzeko, ez erabili administrazio ekintza hau.';
+    }
+    if (normalizedMessage.includes('invalid_day_index')) {
+      return 'Egun baliogabea hautatu duzu.';
+    }
     return 'Formato baliogabea. Erabili 3-32 karaktere: a-z, 0-9 eta _.';
   }
   if (error.code === 'PGRST106') {
@@ -88,6 +98,18 @@ export const mapAccountApiError = (error: Pick<PostgrestError, 'code' | 'message
   }
   if (normalizedMessage.includes('current_username_not_found')) {
     return 'Ez da uneko erabiltzaile izena aurkitu. Jarri harremanetan administratzailearekin.';
+  }
+  if (normalizedMessage.includes('target_user_not_found')) {
+    return 'Helburuko jokalaria ez da aurkitu.';
+  }
+  if (normalizedMessage.includes('forbidden')) {
+    return 'Ez duzu baimenik ekintza hau egiteko.';
+  }
+  if (normalizedMessage.includes('cannot_clear_own_results_from_admin')) {
+    return 'Zure emaitzak ezabatzeko, ez erabili administrazio ekintza hau.';
+  }
+  if (normalizedMessage.includes('use_change_my_username_for_self')) {
+    return 'Zure izena aldatzeko, erabili Profila atala.';
   }
 
   console.error("Supabase RPC Error:", error);

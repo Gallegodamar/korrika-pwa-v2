@@ -1,11 +1,36 @@
-import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
-  Eye, ChevronLeft, CheckCircle2, Settings, Variable as PlayCircle, Database, CalendarIcon, Save, RefreshCw
+  BookOpen,
+  CalendarIcon,
+  CheckCircle2,
+  ChevronLeft,
+  Database,
+  PlayCircle,
+  RefreshCw,
+  Save,
+  Shield,
+  Sparkles,
+  Trash2,
+  Users
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../store/useAppStore';
 import { GameState } from '../../types';
-import { DAY_OPTIONS } from '../../utils/constants';
+import {
+  DAY_OPTIONS,
+  EDUKIAK_CACHE_KEY,
+  LEADERBOARDS_CACHE_KEY,
+  LEGACY_PROGRESS_STORAGE_KEY,
+  PLAYERS_CACHE_KEY,
+  PROGRESS_STORAGE_PREFIX,
+  QUIZ_CACHE_KEY,
+  SIMULATION_STORAGE_KEY,
+  START_DATE_CACHE_KEY,
+  USER_DAILY_PLAYS_CACHE_PREFIX,
+  WELCOME_SEEN_STORAGE_PREFIX
+} from '../../utils/constants';
+import AdminPlayersPanel from './AdminPlayersPanel';
 
 type SupervisorScreenProps = {
   isAdmin: boolean;
@@ -16,231 +41,392 @@ type SupervisorScreenProps = {
   stopSequentialSimulation: () => void;
 };
 
+type SupervisorTab = 'ERRONKA' | 'JOKALARIAK' | 'GALDERAK';
+
 const SupervisorScreen: React.FC<SupervisorScreenProps> = React.memo((props) => {
   const {
-    isAdmin, startSimulationDay, saveChallengeStartDate, resetChallengeStartDate,
-    startSequentialSimulation, stopSequentialSimulation
+    isAdmin,
+    startSimulationDay,
+    saveChallengeStartDate,
+    resetChallengeStartDate,
+    startSequentialSimulation,
+    stopSequentialSimulation
   } = props;
 
-  const { quizData, setGameState, sequentialSimulationActive, adminStartDateInput, setAdminStartDateInput, challengeStartDate, setProgress } = useAppStore();
-  const [activeTab, setActiveTab] = useState<'EZARPENAK' | 'DATU_BASEA'>('EZARPENAK');
-  const [supervisorCategory, setSupervisorCategory] = useState<string>('GUZTIAK');
+  const {
+    quizData,
+    setGameState,
+    sequentialSimulationActive,
+    adminStartDateInput,
+    setAdminStartDateInput,
+    challengeStartDate,
+    setProgress
+  } = useAppStore(useShallow((state) => ({
+    quizData: state.quizData,
+    setGameState: state.setGameState,
+    sequentialSimulationActive: state.sequentialSimulationActive,
+    adminStartDateInput: state.adminStartDateInput,
+    setAdminStartDateInput: state.setAdminStartDateInput,
+    challengeStartDate: state.challengeStartDate,
+    setProgress: state.setProgress
+  })));
+
+  const [activeTab, setActiveTab] = useState<SupervisorTab>('ERRONKA');
+  const [questionCategory, setQuestionCategory] = useState('GUZTIAK');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
-  const filteredSupervisorData = useMemo(() => {
-    if (supervisorCategory === 'GUZTIAK') return quizData;
-    return quizData.filter(cat => cat.capitulo === supervisorCategory);
-  }, [supervisorCategory, quizData]);
+  const filteredQuestions = useMemo(() => {
+    if (questionCategory === 'GUZTIAK') return quizData;
+    return quizData.filter((category) => category.capitulo === questionCategory);
+  }, [questionCategory, quizData]);
 
   const handleBack = () => {
     setGameState(GameState.HOME);
   };
 
-  const clearAllProgress = () => {
-    if (window.confirm("Ziur zaude tokiko progresoa ezabatu nahi duzula?")) {
-      setProgress([]);
-      localStorage.clear(); // We can be brutal in Dev mode to force clean state
-      alert("Progresoa tokian ezabatu da.");
+  const clearLocalProgress = () => {
+    if (!window.confirm('Gailu honetako tokiko datuak garbitu nahi dituzu?')) {
+      return;
     }
+
+    setProgress([]);
+
+    [
+      LEGACY_PROGRESS_STORAGE_KEY,
+      SIMULATION_STORAGE_KEY,
+      QUIZ_CACHE_KEY,
+      EDUKIAK_CACHE_KEY,
+      PLAYERS_CACHE_KEY,
+      START_DATE_CACHE_KEY,
+      LEADERBOARDS_CACHE_KEY
+    ].forEach((key) => localStorage.removeItem(key));
+
+    Object.keys(localStorage).forEach((key) => {
+      if (
+        key.startsWith(`${PROGRESS_STORAGE_PREFIX}_`) ||
+        key.startsWith(`${USER_DAILY_PLAYS_CACHE_PREFIX}_`) ||
+        key.startsWith(`${WELCOME_SEEN_STORAGE_PREFIX}_`)
+      ) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    window.alert('Tokiko datuak garbitu dira.');
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 200 } }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.3 }}
-      className="flex-1 flex flex-col h-full bg-slate-50 relative overflow-hidden"
-    >
-      {/* Header Fijo */}
-      <div className="bg-white px-4 pt-4 pb-2 shadow-sm shrink-0 z-20">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-100 p-2 sm:p-2.5 rounded-xl text-amber-600">
-              <Settings className="w-6 h-6" strokeWidth={2.5} />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black uppercase text-slate-800 leading-tight">Ikuskaritza</h2>
-              <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest mt-0.5">Admin Modua</p>
-            </div>
-          </div>
+  if (!isAdmin) {
+    return (
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-md rounded-[2rem] border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
+          <Shield className="mx-auto text-amber-500" size={36} />
+          <h2 className="mt-4 text-2xl font-black text-slate-900">Sarbide mugatua</h2>
+          <p className="mt-2 text-sm font-medium text-slate-600">
+            Ikuskaritza pantaila hau administratzaileentzat bakarrik dago erabilgarri.
+          </p>
           <button
+            type="button"
             onClick={handleBack}
-            aria-label="Itzuli atzera"
-            title="Itzuli atzera"
-            className="p-2 sm:p-3 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors"
+            className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-[11px] font-black uppercase tracking-wider text-white"
           >
-            <ChevronLeft strokeWidth={3} size={20} />
-          </button>
-        </div>
-
-        {/* Tab Selector */}
-        <div className="flex bg-slate-100 p-1 rounded-2xl w-full">
-          <button
-            onClick={() => setActiveTab('EZARPENAK')}
-            className={`flex-1 py-2.5 px-2 text-[11px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'EZARPENAK' ? 'bg-white shadow text-amber-600' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Settings size={14} /> Ezarpenak
-          </button>
-          <button
-            onClick={() => setActiveTab('DATU_BASEA')}
-            className={`flex-1 py-2.5 px-2 text-[11px] sm:text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'DATU_BASEA' ? 'bg-white shadow text-teal-600' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            <Database size={14} /> Datu-Basea
+            <ChevronLeft size={16} />
+            Itzuli hasierara
           </button>
         </div>
       </div>
+    );
+  }
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar relative z-10">
-        {activeTab === 'EZARPENAK' && (
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6 max-w-lg mx-auto pb-10">
-            {/* Global Start Date */}
-            <motion.section variants={itemVariants} className="bg-white rounded-3xl p-5 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border border-slate-100">
-              <div className="flex items-center gap-2 mb-4 text-blue-600">
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -12 }}
+      className="flex-1 flex flex-col overflow-hidden bg-slate-50"
+    >
+      <div className="shrink-0 border-b border-slate-200 bg-white px-4 pb-4 pt-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+              <Shield size={24} strokeWidth={2.5} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">Ikuskaritza</h2>
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-amber-600">
+                Erronka, jokalariak eta galderak
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200 hover:text-slate-700"
+            aria-label="Itzuli"
+            title="Itzuli"
+          >
+            <ChevronLeft size={20} strokeWidth={3} />
+          </button>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2 rounded-[1.5rem] bg-slate-100 p-1">
+          {[
+            { id: 'ERRONKA' as const, label: 'Erronka', icon: Sparkles },
+            { id: 'JOKALARIAK' as const, label: 'Jokalariak', icon: Users },
+            { id: 'GALDERAK' as const, label: 'Galderak', icon: BookOpen }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center justify-center gap-2 rounded-[1rem] px-3 py-3 text-[11px] font-black uppercase tracking-wider transition-all ${
+                  isActive
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Icon size={15} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 custom-scrollbar">
+        {activeTab === 'ERRONKA' && (
+          <div className="mx-auto max-w-5xl space-y-5 pb-10">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sky-600">
                 <CalendarIcon size={18} />
-                <h3 className="font-black uppercase tracking-widest text-xs">Erronkaren Data Globala</h3>
+                <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-900">
+                  Erronkaren egutegia
+                </h3>
               </div>
-              <p className="text-xs text-slate-500 font-bold mb-4">Mundu guztiarentzeako egun bakoitzeko kalkulua noiz hasten den definitzen du. (<strong className="text-slate-800">Gaurkoa: {challengeStartDate}</strong>)</p>
+              <p className="mt-3 text-sm font-medium text-slate-600">
+                Hemen ezartzen da 11 eguneko erronka noiz hasten den jokalari guztientzat.
+              </p>
+              <p className="mt-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
+                Uneko hasiera-data: {challengeStartDate}
+              </p>
 
-              <div className="flex gap-2">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <input
                   type="date"
-                  aria-label="Kalkulatu hasiera data"
                   value={adminStartDateInput}
-                  onChange={(e) => setAdminStartDateInput(e.target.value)}
-                  className="flex-1 bg-slate-50 border-2 border-slate-100 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:border-blue-400 outline-none"
+                  onChange={(event) => setAdminStartDateInput(event.target.value)}
+                  className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-colors focus:border-sky-400"
                 />
                 <button
+                  type="button"
                   disabled={isSavingConfig}
-                  aria-label="Gorde"
-                  title="Gorde"
                   onClick={() => saveChallengeStartDate(setIsSavingConfig)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white rounded-xl px-4 py-2 flex items-center justify-center disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-600 px-5 py-3 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-sky-700 disabled:opacity-60"
                 >
-                  <Save size={18} />
+                  <Save size={16} />
+                  Gorde
                 </button>
                 <button
+                  type="button"
                   disabled={isSavingConfig}
                   onClick={() => resetChallengeStartDate(setIsSavingConfig)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-xl px-4 py-2 flex items-center justify-center disabled:opacity-50 transition-colors"
-                  aria-label="Berrezarri defektuzko data"
-                  title="Berrezarri defektuzko data"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-[11px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-800 disabled:opacity-60"
                 >
-                  <RefreshCw size={18} />
+                  <RefreshCw size={16} />
+                  Berrezarri
                 </button>
               </div>
-            </motion.section>
+            </section>
 
-            {/* Time Travel Testing */}
-            <motion.section variants={itemVariants} className="bg-white rounded-3xl p-5 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] border border-slate-100">
-              <div className="flex items-center gap-2 mb-4 text-amber-500">
-                <PlayCircle size={18} />
-                <h3 className="font-black uppercase tracking-widest text-xs">Simulatu Eguna (Time Travel)</h3>
+            <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+              <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-2 text-amber-600">
+                  <PlayCircle size={18} />
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-900">
+                    Egun bakarreko simulazioa
+                  </h3>
+                </div>
+                <p className="mt-3 text-sm font-medium text-slate-600">
+                  Egun jakin bateko galderak irekitzeko eta probatzeko erabil ezazu.
+                </p>
+
+                <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">
+                  {DAY_OPTIONS.map((dayIndex) => (
+                    <button
+                      key={dayIndex}
+                      type="button"
+                      onClick={() => startSimulationDay(dayIndex)}
+                      className="rounded-2xl border border-amber-200 bg-amber-50 py-3 text-sm font-black text-amber-700 transition-colors hover:bg-amber-500 hover:text-white"
+                    >
+                      {dayIndex + 1}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center gap-2 text-emerald-600">
+                  <Database size={18} />
+                  <h3 className="text-sm font-black uppercase tracking-[0.18em] text-slate-900">
+                    Simulazio sekuentziala
+                  </h3>
+                </div>
+                <p className="mt-3 text-sm font-medium text-slate-600">
+                  Erronka osoa egunez egun erreproduzitzen du, diseinua eta datuen fluxua egiaztatzeko.
+                </p>
+
+                <div className="mt-5 flex flex-col gap-3">
+                  <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                      Egoera
+                    </p>
+                    <p className={`mt-1 text-base font-black ${sequentialSimulationActive ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {sequentialSimulationActive ? 'Simulazioa martxan dago' : 'Simulazioa geldirik dago'}
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={startSequentialSimulation}
+                      className="rounded-2xl bg-emerald-600 px-4 py-3 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-emerald-700"
+                    >
+                      Hasi sekuentzia
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopSequentialSimulation}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[11px] font-black uppercase tracking-wider text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-800"
+                    >
+                      Gelditu sekuentzia
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <section className="rounded-[2rem] border border-rose-200 bg-rose-50 p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-rose-600">
+                <Trash2 size={18} />
+                <h3 className="text-sm font-black uppercase tracking-[0.18em] text-rose-800">
+                  Gailu honetako tokiko datuak
+                </h3>
               </div>
-              <p className="text-xs text-slate-500 font-bold mb-4">Gainidatzi denbora eta jolastu zehazki nahi duzun eguneroko galdeketa.</p>
+              <p className="mt-3 text-sm font-medium text-rose-700">
+                Honek nabigatzaile honetako cachea, ongietorria eta tokiko progresoa baino ez ditu garbitzen.
+              </p>
+              <button
+                type="button"
+                onClick={clearLocalProgress}
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-5 py-3 text-[11px] font-black uppercase tracking-wider text-white transition-colors hover:bg-rose-700"
+              >
+                <Trash2 size={16} />
+                Garbitu tokiko datuak
+              </button>
+            </section>
+          </div>
+        )}
 
-              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                {DAY_OPTIONS.map((dayIdx) => (
+        {activeTab === 'JOKALARIAK' && (
+          <div className="mx-auto max-w-6xl pb-10">
+            <AdminPlayersPanel />
+          </div>
+        )}
+
+        {activeTab === 'GALDERAK' && (
+          <div className="mx-auto max-w-5xl pb-10">
+            <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Galdera-bankua</h3>
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-teal-600">
+                    Edukia egiaztatzeko ikuspegia
+                  </p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                  {quizData.length} multzo
+                </span>
+              </div>
+
+              <div className="mt-5 flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setQuestionCategory('GUZTIAK')}
+                  className={`rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+                    questionCategory === 'GUZTIAK'
+                      ? 'bg-teal-600 text-white'
+                      : 'border border-slate-200 bg-white text-slate-500 hover:border-teal-300 hover:text-teal-700'
+                  }`}
+                >
+                  Guztiak
+                </button>
+                {quizData.map((category) => (
                   <button
-                    key={dayIdx}
-                    onClick={() => startSimulationDay(dayIdx)}
-                    className="bg-amber-50 hover:bg-amber-500 text-amber-600 hover:text-white border border-amber-200 font-black rounded-xl py-2 transition-colors text-sm"
+                    key={category.capitulo}
+                    type="button"
+                    onClick={() => setQuestionCategory(category.capitulo)}
+                    className={`rounded-full px-4 py-2 text-[11px] font-black uppercase tracking-wider transition-all ${
+                      questionCategory === category.capitulo
+                        ? 'bg-teal-600 text-white'
+                        : 'border border-slate-200 bg-white text-slate-500 hover:border-teal-300 hover:text-teal-700'
+                    }`}
                   >
-                    {dayIdx + 1}
+                    {category.capitulo}
                   </button>
                 ))}
               </div>
-            </motion.section>
+            </section>
 
-            {/* Brutal Tools */}
-            <motion.section variants={itemVariants} className="bg-rose-50 border-2 border-dashed border-rose-200 rounded-3xl p-5">
-              <h3 className="font-black uppercase tracking-widest text-xs text-rose-600 mb-2">Tokiko datuak</h3>
-              <p className="text-xs text-rose-500 font-bold mb-4">Gailu honetako memoria, "hasPlayed" flagak, eta zabor lokala ezabatu.</p>
-              <button
-                onClick={clearAllProgress}
-                className="w-full bg-rose-500 text-white font-bold py-3 rounded-xl hover:bg-rose-600 transition-colors shadow-md"
-              >
-                GARBITU TOKIKO PROGRESOA
-              </button>
-            </motion.section>
-          </motion.div>
-        )}
-
-        {/* Database Tab */}
-        {activeTab === 'DATU_BASEA' && (
-          <div className="pb-10 h-full flex flex-col">
-            <div className="overflow-x-auto pb-4 custom-scrollbar flex gap-2 shrink-0 mb-2 mt-1">
-              <button
-                onClick={() => setSupervisorCategory('GUZTIAK')}
-                className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs uppercase whitespace-nowrap transition-all shadow-sm ${supervisorCategory === 'GUZTIAK'
-                  ? 'bg-teal-500 text-white shadow-teal-500/30'
-                  : 'bg-white border text-slate-500 border-slate-200 hover:border-teal-300'
-                  }`}
-              >
-                GUZTIAK
-              </button>
-              {quizData.map((cat) => (
-                <button
-                  key={cat.capitulo}
-                  onClick={() => setSupervisorCategory(cat.capitulo)}
-                  className={`px-4 py-2 rounded-xl font-black text-[10px] sm:text-xs uppercase whitespace-nowrap transition-all shadow-sm ${supervisorCategory === cat.capitulo
-                    ? 'bg-teal-500 text-white shadow-teal-500/30'
-                    : 'bg-white text-slate-500 border border-slate-200 hover:border-teal-300'
-                    }`}
-                >
-                  {cat.capitulo}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 space-y-4">
-              {filteredSupervisorData.length === 0 ? (
-                <div className="text-center text-sm text-slate-400 font-bold py-10 bg-white/50 rounded-3xl border border-dashed border-slate-200">
-                  Ez dago galderarik kargatuta.
+            <div className="mt-5 space-y-4">
+              {filteredQuestions.length === 0 && (
+                <div className="rounded-[2rem] border border-dashed border-slate-200 bg-white px-5 py-8 text-center">
+                  <p className="text-lg font-black text-slate-700">Ez dago galderarik kargatuta.</p>
+                  <p className="mt-2 text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    Egiaztatu datu-iturria edo kargatu berriro
+                  </p>
                 </div>
-              ) : (
-                <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
-                  {filteredSupervisorData.map((category) => (
-                    <motion.div variants={itemVariants} key={category.capitulo} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100">
-                      <div className="bg-slate-800 p-3 sm:p-4 text-white font-black text-xs sm:text-sm uppercase tracking-widest flex items-center justify-between">
-                        <span className="truncate pr-4 text-teal-400">{category.capitulo}</span>
-                        <span className="bg-white/10 px-2 py-1 rounded text-[10px] shrink-0">
-                          {category.preguntas.length} U.
-                        </span>
-                      </div>
-                      <div className="divide-y divide-slate-50">
-                        {category.preguntas.map((q, qIdx) => (
-                          <div key={q.id} className="p-4 sm:p-5 transition-colors hover:bg-slate-50/50">
-                            <p className="font-bold text-sm sm:text-base text-slate-800 mb-3 leading-snug">
-                              <span className="text-teal-500 mr-2">{qIdx + 1}.</span>
-                              {q.pregunta}
-                            </p>
-                            <div className="flex items-start gap-2 bg-teal-50/50 rounded-xl p-3 border border-teal-100/50">
-                              <CheckCircle2 strokeWidth={3} className="text-teal-500 w-4 h-4 shrink-0 mt-0.5" />
-                              <p className="text-[11px] sm:text-xs text-teal-800 font-bold leading-normal">
-                                {q.opciones[q.respuesta_correcta]}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  ))}
-                </motion.div>
               )}
+
+              {filteredQuestions.map((category) => (
+                <section
+                  key={category.capitulo}
+                  className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-3 bg-slate-900 px-5 py-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-black uppercase tracking-[0.18em] text-teal-400">
+                        {category.capitulo}
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white">
+                      {category.preguntas.length} galdera
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-slate-100">
+                    {category.preguntas.map((question, questionIndex) => (
+                      <article key={question.id} className="p-5">
+                        <p className="text-base font-black leading-snug text-slate-900">
+                          <span className="mr-2 text-teal-500">{questionIndex + 1}.</span>
+                          {question.pregunta}
+                        </p>
+                        <div className="mt-4 rounded-[1.25rem] border border-teal-100 bg-teal-50 p-4">
+                          <p className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-teal-700">
+                            <CheckCircle2 size={14} />
+                            Erantzun zuzena
+                          </p>
+                          <p className="text-sm font-bold text-teal-900">
+                            {question.opciones[question.respuesta_correcta]}
+                          </p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
           </div>
         )}
@@ -250,4 +436,5 @@ const SupervisorScreen: React.FC<SupervisorScreenProps> = React.memo((props) => 
 });
 
 SupervisorScreen.displayName = 'SupervisorScreen';
+
 export default SupervisorScreen;

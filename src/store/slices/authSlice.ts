@@ -49,12 +49,22 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set,
             return;
         }
 
+        const sessionUserId = session.user.id;
+
         try {
             set({ loadingAccount: true });
             const [identity, history] = await Promise.all([
                 getMyAccountIdentity(),
                 getMyUsernameHistory(8)
             ]);
+
+            const {
+                data: { session: latestSession }
+            } = await supabase.auth.getSession();
+
+            if (latestSession?.user?.id !== sessionUserId) {
+                return;
+            }
 
             set({ accountIdentity: identity ?? null, usernameHistory: history });
 

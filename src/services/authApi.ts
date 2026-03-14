@@ -36,6 +36,19 @@ const signInWithLegacyEmail = async (username: string, password: string) => {
   return data.session;
 };
 
+const tryLegacyFallback = async (username: string, password: string, prefixMessage: string) => {
+  try {
+    return await signInWithLegacyEmail(username, password);
+  } catch (legacyError) {
+    const legacyMessage =
+      legacyError instanceof Error
+        ? legacyError.message
+        : 'Ezin izan da saioa hasi. Saiatu berriro.';
+
+    throw new Error(`${prefixMessage} ${legacyMessage}`);
+  }
+};
+
 export const loginWithUsername = async (username: string, password: string) => {
   try {
     const response = await fetch(getLoginFunctionUrl(), {
@@ -53,7 +66,11 @@ export const loginWithUsername = async (username: string, password: string) => {
 
     if (response.status === 404) {
       if (canUseLegacyFallback) {
-        return await signInWithLegacyEmail(username, password);
+        return await tryLegacyFallback(
+          username,
+          password,
+          'Username bidezko login zerbitzua ez dago prest oraindik. Fallback lokala ere huts egin du:'
+        );
       }
       throw new Error(
         'Ez dago username bidezko login zerbitzua martxan. Desplegatu login-with-username funtzioa.'
@@ -77,19 +94,16 @@ export const loginWithUsername = async (username: string, password: string) => {
 
     return data.session;
   } catch (error) {
-    if (canUseLegacyFallback) {
-      try {
-        return await signInWithLegacyEmail(username, password);
-      } catch (legacyError) {
-        const legacyMessage =
-          legacyError instanceof Error
-            ? legacyError.message
-            : 'Ezin izan da saioa hasi. Saiatu berriro.';
+    const isNetworkLevelFailure =
+      error instanceof TypeError ||
+      (error instanceof Error && /fetch|network|failed to fetch/i.test(error.message));
 
-        throw new Error(
-          `Username bidezko login zerbitzua ez dago prest oraindik. Fallback lokala ere huts egin du: ${legacyMessage}`
-        );
-      }
+    if (canUseLegacyFallback && isNetworkLevelFailure) {
+      return await tryLegacyFallback(
+        username,
+        password,
+        'Username bidezko login zerbitzua ez dago erabilgarri une honetan. Fallback lokala ere huts egin du:'
+      );
     }
 
     if (error instanceof Error && error.message) {

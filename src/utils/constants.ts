@@ -7,11 +7,13 @@ export const PLAYERS_CACHE_KEY = 'korrika_registered_players_v1';
 export const START_DATE_CACHE_KEY = 'korrika_start_date_v1';
 export const LEADERBOARDS_CACHE_KEY = 'korrika_leaderboards_v2';
 export const USER_DAILY_PLAYS_CACHE_PREFIX = 'korrika_user_daily_plays_v2';
+export const WELCOME_SEEN_STORAGE_PREFIX = 'korrika_welcome_seen_v1';
 export const GLOBAL_CONFIG_TABLE = 'korrika_app_config';
 export const START_DATE_CONFIG_KEY = 'challenge_start_date';
 
 export const DAYS_COUNT = 11;
 export const QUESTIONS_PER_DAY = 12;
+export const QUESTIONS_PER_CATEGORY = 2;
 export const SECONDS_PER_QUESTION = 20;
 export const DEFAULT_CHALLENGE_START_DATE = '2026-02-14';
 export const LEGACY_ADMIN_USERS = ['admin', 'k_admin'];

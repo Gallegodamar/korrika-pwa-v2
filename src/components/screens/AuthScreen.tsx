@@ -4,20 +4,24 @@ import { Eye, EyeOff, Lock, User, AlertCircle, AlertTriangle } from 'lucide-reac
 import { useAppStore } from '../../store/useAppStore';
 import { GameState } from '../../types';
 import { loginWithUsername } from '../../services/authApi';
+import { useShallow } from 'zustand/react/shallow';
 
 const AuthScreen: React.FC = React.memo(() => {
   const {
     setUser,
     setGameState,
+    setCurrentTab,
     loadingAuth,
     setLoadingAuth,
-    fetchAccountIdentity,
-    fetchGlobalStartDate,
-    fetchLeaderboards,
-    fetchRegisteredPlayers,
-    fetchUserDailyPlays,
     setDailyPlayLockMessage
-  } = useAppStore();
+  } = useAppStore(useShallow((state) => ({
+    setUser: state.setUser,
+    setGameState: state.setGameState,
+    setCurrentTab: state.setCurrentTab,
+    loadingAuth: state.loadingAuth,
+    setLoadingAuth: state.setLoadingAuth,
+    setDailyPlayLockMessage: state.setDailyPlayLockMessage
+  })));
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -41,16 +45,8 @@ const AuthScreen: React.FC = React.memo(() => {
       if (session.user) {
         setUser(session.user);
         setDailyPlayLockMessage(null);
+        setCurrentTab('home');
         setGameState(GameState.HOME);
-
-        // Fetch Post-auth Data
-        await Promise.all([
-          fetchGlobalStartDate(true),
-          fetchRegisteredPlayers(true),
-          fetchAccountIdentity(),
-          fetchLeaderboards().then(() => fetchLeaderboards(true)),
-          fetchUserDailyPlays(session.user.id).then(() => fetchUserDailyPlays(session.user.id, true))
-        ]);
       }
     } catch (err: any) {
       console.error('Supabase Login Error:', err);
@@ -69,6 +65,7 @@ const AuthScreen: React.FC = React.memo(() => {
       aud: 'authenticated',
       created_at: new Date().toISOString()
     } as any);
+    setCurrentTab('home');
     setGameState(GameState.HOME);
   };
 

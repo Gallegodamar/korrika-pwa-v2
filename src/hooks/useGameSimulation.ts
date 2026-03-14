@@ -10,6 +10,7 @@ import {
     DEFAULT_CHALLENGE_START_DATE,
     DAYS_COUNT
 } from '../utils/constants';
+import { useShallow } from 'zustand/react/shallow';
 
 export const useGameSimulation = (
     isAdmin: boolean,
@@ -22,7 +23,26 @@ export const useGameSimulation = (
         setPlayMode, setDayIndex, setActiveQuestions, setPlayers, setCurrentPlayerIdx,
         setCurrentQuestionIdx, setGameState, setSequentialSimulationActive, setSequentialSimulationDay,
         setSequentialSimulationProgress
-    } = useAppStore();
+    } = useAppStore(useShallow((state) => ({
+        challengeStartDate: state.challengeStartDate,
+        adminStartDateInput: state.adminStartDateInput,
+        sequentialSimulationActive: state.sequentialSimulationActive,
+        sequentialSimulationDay: state.sequentialSimulationDay,
+        setChallengeStartDate: state.setChallengeStartDate,
+        setAdminStartDateInput: state.setAdminStartDateInput,
+        setReviewDayIndex: state.setReviewDayIndex,
+        setIsSimulationRun: state.setIsSimulationRun,
+        setPlayMode: state.setPlayMode,
+        setDayIndex: state.setDayIndex,
+        setActiveQuestions: state.setActiveQuestions,
+        setPlayers: state.setPlayers,
+        setCurrentPlayerIdx: state.setCurrentPlayerIdx,
+        setCurrentQuestionIdx: state.setCurrentQuestionIdx,
+        setGameState: state.setGameState,
+        setSequentialSimulationActive: state.setSequentialSimulationActive,
+        setSequentialSimulationDay: state.setSequentialSimulationDay,
+        setSequentialSimulationProgress: state.setSequentialSimulationProgress
+    })));
 
     const simulationToday = useMemo(() => {
         if (!sequentialSimulationActive) return null;

@@ -9,8 +9,8 @@ type BottomNavProps = {
 
 const BottomNav: React.FC<BottomNavProps> = React.memo(({ currentTab, onChangeTab }) => {
     const tabs = [
-        { id: 'home', icon: Home, label: 'Inicio' },
-        { id: 'history', icon: CalendarClock, label: 'Historial' },
+        { id: 'home', icon: Home, label: 'Hasiera' },
+        { id: 'history', icon: CalendarClock, label: 'Ibilbidea' },
         { id: 'ranking', icon: Trophy, label: 'Sailkapena' },
         { id: 'profile', icon: User, label: 'Profila' }
     ] as const;
